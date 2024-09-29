@@ -51,6 +51,11 @@ io.on("connection", (socket) => {
     }
   });
 
+  socket.on("player-movement", (lobby, yPos) => {
+    // console.log(lobby, pos);
+    socket.to(lobby).emit("opp-movement", yPos)
+  })
+
   socket.on("request-leave", (lobby) => {
     socket.to(lobby).emit("leave-notify")
     io.in(lobby).socketsLeave(lobby)

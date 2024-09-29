@@ -194,7 +194,7 @@ function Home() {
             </div>
         </div>
     </div>
-	) : (<GameScreen />)}
+	) : (<GameScreen socket={socket} lobby={lobby} />)}
 	</div>
 	</>
   )
