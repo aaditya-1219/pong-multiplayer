@@ -4,7 +4,7 @@ import WaitingScreen from "../components/WaitingScreen.jsx"
 import Button from '../components/Button.jsx';
 import Spinner from "../components/Spinner.jsx"
 import { toast } from 'react-toastify';
-import { useState,useEffect } from 'react'
+import { useState,useEffect, useRef } from 'react'
 import GameScreen from "../src/GameScreen.jsx"
 
 function Home() {
@@ -17,6 +17,8 @@ function Home() {
 
 	const [message, setMessage] = useState('')
 	const [nickname, setNickname] = useState('')
+
+	const isLobbyLeader = useRef(true)
 
 	const handleCreate = () => {
 		if(lobby != null) return;
@@ -46,6 +48,7 @@ function Home() {
 			if(callback == null) {
 				toast.error("Lobby does not exist")
 			} else {
+				isLobbyLeader.current = false
 				setLobby(callback.lobby)
 			}
 		})
@@ -63,7 +66,7 @@ function Home() {
 		setInGame(false)
 		toast.info("Opponent left")
 		setOpponentId(null)
-		setLobby(null) // join own lobby again
+		setLobby(null)
 	};
 
 	const onConnect = (id) => {
@@ -93,6 +96,7 @@ function Home() {
 	};
 
 	const onPlayersJoined = () => {
+		console.log("Lobby leader: " + isLobbyLeader.current);
 		setIsLoading(true)
 		setTimeout(() => {
 			setIsLoading(false)
@@ -194,7 +198,7 @@ function Home() {
             </div>
         </div>
     </div>
-	) : (<GameScreen socket={socket} lobby={lobby} />)}
+	) : (<GameScreen socket={socket} lobby={lobby} isLobbyLeader={isLobbyLeader.current} />)}
 	</div>
 	</>
   )

@@ -1,7 +1,7 @@
 import React, { useRef, useEffect, useState } from 'react';
 import Score from "../components/Score"
 
-function GameScreen({socket, lobby}) {
+function GameScreen({socket, lobby, isLobbyLeader}) {
   const canvasRef = useRef(null);
 
   const getRandomDirection = () => {
@@ -14,8 +14,10 @@ function GameScreen({socket, lobby}) {
   const paddleSpeed = 8;
   const pongSpeed = 8;
   const initialY = window.innerHeight/2 - (paddleHeight/2)
-  const initSelf = { x: paddleOffset, y: initialY }
-  const initOpp = { x: window.innerWidth - paddleOffset - paddleWidth, y: initialY }
+
+  let initSelf = (isLobbyLeader ? { x: paddleOffset, y: initialY }: { x: window.innerWidth - paddleOffset - paddleWidth, y: initialY })
+  let initOpp = (!isLobbyLeader ? { x: paddleOffset, y: initialY }: { x: window.innerWidth - paddleOffset - paddleWidth, y: initialY })
+
   const initPong = {x: window.innerWidth/2 - (pongSize/2), y: window.innerHeight/2 - (pongSize/2)}
   const [self, setSelf] = useState(initSelf); 
   const [opp, setOpp] = useState(initOpp); 
@@ -36,7 +38,8 @@ function GameScreen({socket, lobby}) {
     setPong(initPong)
     setDirection({x: 0, y: 0})
     // Freeze pong for some time before next round
-    const newDirection = {x: -1, y: getRandomDirection()}
+    // const newDirection = {x: -1, y: getRandomDirection()}
+    const newDirection = {x: -1, y: -1}
     setTimeout(() => {
       if(lastWinner.current == -1 && newDirection.x < 0) newDirection.x *= -1
       if(lastWinner.current == 1 && newDirection.x > 0) newDirection.x *= -1
@@ -50,6 +53,7 @@ function GameScreen({socket, lobby}) {
 
   // For drawing and re-drawing the canvas whenever position changes (every frame)
   useEffect(() => {
+    if(!pong || !self || !opp) return
     const canvas = canvasRef.current
     const ctx = canvas.getContext('2d');
 
@@ -76,6 +80,8 @@ function GameScreen({socket, lobby}) {
     const oppTop = opp.y
     const oppBottom = opp.y + paddleHeight;
 
+    // ---
+    // lobby leader only
     // collision between self and pong
     if (pongLeft < selfRight && pongBottom > selfTop && pongTop < selfBottom) {
       const leftCollisionDist = Math.abs(selfRight - pongLeft)
@@ -126,6 +132,8 @@ function GameScreen({socket, lobby}) {
     if(gameOver()) {
       startGame()
     }
+    // ---
+    // lobby leader only
 
     ctx.clearRect(0, 0, canvas.width, canvas.height); // Clear previous frame
     drawImage(ctx, paddleSprite, self.x, self.y, paddleWidth, paddleHeight); // Self paddle
@@ -138,16 +146,19 @@ function GameScreen({socket, lobby}) {
   let lastEmitTime = 0;
 
   useEffect(() => {
+    if(self == null) return
     let now = Date.now();
     if(now - lastEmitTime < emitInterval) return
     // any time self changes, emit player-movement event
-    socket.emit("player-movement", lobby, self.y)
+    // socket.emit("player-movement", lobby, self.y)
+    socket.emit("player-movement", lobby, {oppYPos: self.y, pongPos: pong})
     lastEmitTime = now;
-  }, [self.y])
+  }, [self, pong])
 
-  const setOppPosition = (oppYPos) => {
+  const setOppPosition = (obj) => {
     // console.log(oppPos);
-    setOpp(prev => ({...prev, y: oppYPos}))
+    setOpp(prev => ({...prev, y: obj.oppYPos}))
+    setPong(obj.pongPos)
   }
 
   useEffect(() => {
@@ -156,7 +167,7 @@ function GameScreen({socket, lobby}) {
     return () => {
       socket.off("opp-movement", setOppPosition)
     }
-  })
+  }, [])
 
   // key down
   const handleKeyDown = (event) => {
@@ -180,20 +191,20 @@ function GameScreen({socket, lobby}) {
       const canvas = canvasRef.current
 
       setSelf((prev) => {
-        // let newX = prev.x;
         let newY = prev.y;
 
         if (keysPressed['ArrowUp']) newY = Math.max(newY-paddleSpeed,0);
         if (keysPressed['ArrowDown']) newY = Math.min(newY+paddleSpeed,canvas.height-paddleHeight);
 
-        return { x: paddleOffset, y: newY };
+        return {...prev, y: newY };
       });
 
+      // lobby leader only
       setPong((prev) => {
         let newXPos = prev.x + (direction.x * pongSpeed)
         let newYPos = prev.y + (direction.y * pongSpeed)
         // temp
-        return initPong
+        // return initPong
         return {x: newXPos, y: newYPos}
       })
 
