@@ -51,14 +51,18 @@ io.on("connection", (socket) => {
     }
   });
 
-  socket.on("player-movement", (lobby, yPos) => {
+  socket.on("player-movement", (lobby, oppYPos) => {
     // console.log(lobby, pos);
-    socket.to(lobby).emit("opp-movement", yPos)
+    socket.to(lobby).emit("opp-movement", oppYPos)
   })
 
   socket.on("request-leave", (lobby) => {
     socket.to(lobby).emit("leave-notify")
     io.in(lobby).socketsLeave(lobby)
+  })
+  
+  socket.on("pong-pos", (lobby, pongPos) => {
+    socket.to(lobby).emit("pong-movement", pongPos);
   })
 
   socket.on("disconnect", () => {

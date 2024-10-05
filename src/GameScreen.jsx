@@ -38,8 +38,8 @@ function GameScreen({socket, lobby, isLobbyLeader}) {
     setPong(initPong)
     setDirection({x: 0, y: 0})
     // Freeze pong for some time before next round
-    // const newDirection = {x: -1, y: getRandomDirection()}
-    const newDirection = {x: -1, y: -1}
+    const newDirection = {x: -1, y: getRandomDirection()}
+    // const newDirection = {x: -1, y: -1}
     setTimeout(() => {
       if(lastWinner.current == -1 && newDirection.x < 0) newDirection.x *= -1
       if(lastWinner.current == 1 && newDirection.x > 0) newDirection.x *= -1
@@ -80,9 +80,6 @@ function GameScreen({socket, lobby, isLobbyLeader}) {
     const oppTop = opp.y
     const oppBottom = opp.y + paddleHeight;
 
-    // ---
-    // lobby leader only
-    // collision between self and pong
     if (pongLeft < selfRight && pongBottom > selfTop && pongTop < selfBottom) {
       const leftCollisionDist = Math.abs(selfRight - pongLeft)
       const topCollisionDist = Math.abs(selfBottom - pongTop)
@@ -132,8 +129,6 @@ function GameScreen({socket, lobby, isLobbyLeader}) {
     if(gameOver()) {
       startGame()
     }
-    // ---
-    // lobby leader only
 
     ctx.clearRect(0, 0, canvas.width, canvas.height); // Clear previous frame
     drawImage(ctx, paddleSprite, self.x, self.y, paddleWidth, paddleHeight); // Self paddle
@@ -142,29 +137,37 @@ function GameScreen({socket, lobby, isLobbyLeader}) {
 
   }, [self, opp, pong]);
 
-  const emitInterval = 50;
-  let lastEmitTime = 0;
+  // const emitInterval = 50;
+  // const lastEmitTime = useRef(0)
+  // let lastEmitTime = 0;
 
   useEffect(() => {
     if(self == null) return
-    let now = Date.now();
-    if(now - lastEmitTime < emitInterval) return
+    // let now = Date.now();
+    // if(now - lastEmitTime.current < emitInterval) return
+    // console.log("Debouncing");
     // any time self changes, emit player-movement event
-    // socket.emit("player-movement", lobby, self.y)
-    socket.emit("player-movement", lobby, {oppYPos: self.y, pongPos: pong})
-    lastEmitTime = now;
+    socket.emit("player-movement", lobby, self.y)
+    if(isLobbyLeader) {
+      socket.emit("pong-pos", lobby, pong)
+    }
+    // lastEmitTime.current = now;
   }, [self, pong])
 
-  const setOppPosition = (obj) => {
-    // console.log(oppPos);
-    setOpp(prev => ({...prev, y: obj.oppYPos}))
-    setPong(obj.pongPos)
+  const setOppPosition = (oppYPos) => {
+    setOpp(prev => ({...prev, y: oppYPos}))
+  }
+
+  const setPongPosition = (pongPos) => {
+    setPong(pongPos)
   }
 
   useEffect(() => {
     socket.on("opp-movement", setOppPosition)
+    socket.on("pong-movement", setPongPosition)
 
     return () => {
+      socket.off("pong-movement", setPongPosition)
       socket.off("opp-movement", setOppPosition)
     }
   }, [])
@@ -199,14 +202,14 @@ function GameScreen({socket, lobby, isLobbyLeader}) {
         return {...prev, y: newY };
       });
 
-      // lobby leader only
-      setPong((prev) => {
-        let newXPos = prev.x + (direction.x * pongSpeed)
-        let newYPos = prev.y + (direction.y * pongSpeed)
-        // temp
-        // return initPong
-        return {x: newXPos, y: newYPos}
-      })
+      if(isLobbyLeader){
+        setPong((prev) => {
+          let newXPos = prev.x + (direction.x * pongSpeed)
+          let newYPos = prev.y + (direction.y * pongSpeed)
+          // return initPong
+          return {x: newXPos, y: newYPos}
+        })
+      }
 
       // KEEP THE LOOP RUNNING
       animationFrameId = requestAnimationFrame(process); 
